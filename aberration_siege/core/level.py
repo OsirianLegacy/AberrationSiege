@@ -99,6 +99,22 @@ class Level:
                 if invalid_tiles:
                     raise ValueError(f"Layer {layer_name} references unavailable tile ids.")
 
+    def validation_errors(self, tile_count: int | None = None) -> list[str]:
+        try:
+            self.validate(tile_count=tile_count)
+        except ValueError as exc:
+            return [str(exc)]
+        return []
+
+    def layer_cell_counts(self) -> dict[str, int]:
+        return {
+            layer: sum(1 for row in self.layers[layer] for cell in row if cell is not None)
+            for layer in LAYER_ORDER
+        }
+
+    def painted_cell_count(self) -> int:
+        return sum(self.layer_cell_counts().values())
+
     def resize(self, width: int, height: int) -> None:
         if width <= 0 or height <= 0:
             raise ValueError("Level dimensions must be positive.")

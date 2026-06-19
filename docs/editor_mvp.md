@@ -7,6 +7,7 @@ The first pass focuses on the shared foundation between editor and game:
 - layered rendering order
 - clickable pygame GUI controls
 - designer-controlled map dimensions and maximum expansion size
+- live level statistics and validation feedback
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -15,7 +16,11 @@ The saved level schema already includes future-facing layers for defenses, build
 
 ## GUI Pass
 
-The editor now has a reusable pygame GUI foundation with buttons and section headers. The current screen includes file controls, map dimension controls, view controls, tool selection, layer selection, selected tile preview, and a scrollable tile picker.
+The editor now has a reusable pygame GUI foundation with buttons and section headers. The current screen includes file controls, map dimension controls, validation feedback, level statistics, view controls, tool selection, layer selection, selected tile preview, and a scrollable tile picker.
+
+## Validation
+
+The toolbar has a `Validate` action that runs the same JSON data validation used by save. The sidebar shows live cell totals, painted cell counts, terrain coverage, and Kingdom Zone coverage so level authors can quickly spot empty or incomplete maps.
 
 ## Level Sizing
 

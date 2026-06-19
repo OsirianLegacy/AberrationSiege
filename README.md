@@ -10,6 +10,7 @@ AberrationSiege is a Python and pygame deckbuilder base-defense game. The first 
 - painted Kingdom Zone layer
 - clickable editor GUI controls for file actions, tools, layers, grid, and zoom
 - designer-controlled level width, height, and maximum expansion size
+- live level statistics and validation feedback
 - level JSON save/load
 - save-time validation
 
@@ -27,6 +28,7 @@ The editor saves to `data/levels/editor_level.json` by default.
 ## Editor Controls
 
 - `Save` / `Load` buttons or `Ctrl+S` / `Ctrl+O`
+- `Validate` checks the level JSON data without saving
 - `New` creates a blank level using the current dimensions
 - `W`, `H`, `Max W`, and `Max H` steppers resize the current level
 - `Paint`, `Erase`, and `Pick` tool buttons or `B`, `E`, and `I`

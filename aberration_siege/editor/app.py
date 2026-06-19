@@ -26,6 +26,7 @@ TILE_PICKER_GAP = 4
 TOOLBAR_HEIGHT = 76
 SIDEBAR_PAD = 12
 BUTTON_HEIGHT = 26
+LAYER_BUTTON_HEIGHT = 22
 SECTION_GAP = 14
 MIN_LEVEL_WIDTH = 8
 MIN_LEVEL_HEIGHT = 8
@@ -196,6 +197,8 @@ class LevelEditor:
                 self._load()
             elif button.id == "file:new":
                 self._new_level()
+            elif button.id == "file:validate":
+                self._validate_level()
             elif button.id == "view:grid":
                 self.show_grid = not self.show_grid
                 self.status = f"Grid: {'on' if self.show_grid else 'off'}"
@@ -240,6 +243,13 @@ class LevelEditor:
             return
         self.active_tool = tool
         self.status = f"Tool: {tool}"
+
+    def _validate_level(self) -> None:
+        errors = self.level.validation_errors(tile_count=len(self.tiles))
+        if errors:
+            self.status = f"Invalid: {errors[0]}"
+        else:
+            self.status = "Level validation passed"
 
     def _new_level(self) -> None:
         self.level = Level(
@@ -332,11 +342,12 @@ class LevelEditor:
             ("file:save", "Save"),
             ("file:load", "Load"),
             ("file:new", "New"),
+            ("file:validate", "Validate"),
             ("view:grid", "Grid"),
             ("zoom:out", "-"),
             ("zoom:in", "+"),
         ):
-            width = 64 if len(label) > 1 else 32
+            width = 82 if label == "Validate" else 64 if len(label) > 1 else 32
             button = Button(
                 id=button_id,
                 label=label,
@@ -356,6 +367,18 @@ class LevelEditor:
             self.palette[9],
             self.small_font,
         )
+
+        self._draw_validation_summary(x + 8, 42)
+
+    def _draw_validation_summary(self, x: int, y: int) -> None:
+        errors = self.level.validation_errors(tile_count=len(self.tiles))
+        if errors:
+            text = f"Invalid: {errors[0]}"
+            color = self.palette[22]
+        else:
+            text = "Valid level data"
+            color = self.palette[10]
+        self._draw_text(text, x, y, color, self.small_font)
 
     def _draw_dimension_controls(self, x: int, y: int) -> None:
         x = self._draw_stepper(
@@ -452,6 +475,13 @@ class LevelEditor:
         pygame.draw.rect(self.screen, self.palette[17], preview_rect, 1)
 
         y = 104
+        Section("Level", y).draw(
+            self.screen, self.small_font, SIDEBAR_PAD, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, self.palette[17], self.palette[18]
+        )
+        y += 28
+        self._draw_level_stats(SIDEBAR_PAD, y)
+
+        y += 78
         Section("Tools", y).draw(
             self.screen, self.small_font, SIDEBAR_PAD, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, self.palette[17], self.palette[18]
         )
@@ -478,18 +508,30 @@ class LevelEditor:
             button = Button(
                 id=f"layer:{index}",
                 label=f"{index + 1}  {layer}",
-                rect=pygame.Rect(SIDEBAR_PAD, y, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, BUTTON_HEIGHT),
+                rect=pygame.Rect(SIDEBAR_PAD, y, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, LAYER_BUTTON_HEIGHT),
                 selected=index == self.active_layer_index,
             )
             self._draw_button(button, align_left=True)
             self.buttons.append(button)
-            y += BUTTON_HEIGHT + 4
+            y += LAYER_BUTTON_HEIGHT + 3
 
         y += SECTION_GAP - 2
         Section("Tiles", y).draw(
             self.screen, self.small_font, SIDEBAR_PAD, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, self.palette[17], self.palette[18]
         )
         self._draw_tile_picker(y + 28)
+
+    def _draw_level_stats(self, x: int, y: int) -> None:
+        counts = self.level.layer_cell_counts()
+        painted_cells = self.level.painted_cell_count()
+        total_cells = self.level.width * self.level.height
+        kingdom_cells = counts["kingdom_zone"]
+        terrain_cells = counts["terrain"]
+
+        self._draw_text(f"Cells: {total_cells} / max {self.level.max_width * self.level.max_height}", x, y, self.palette[9])
+        self._draw_text(f"Painted: {painted_cells}", x, y + 18, self.palette[9])
+        self._draw_text(f"Terrain: {terrain_cells}", x, y + 36, self.palette[9])
+        self._draw_text(f"Kingdom Zone: {kingdom_cells}", x, y + 54, self.palette[10])
 
     def _draw_tile_picker(self, top: int) -> None:
         left = SIDEBAR_PAD
