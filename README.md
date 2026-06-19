@@ -17,14 +17,22 @@ AberrationSiege is a Python and pygame deckbuilder base-defense game. The first 
 
 ## Running
 
-Install dependencies, then launch the editor:
+Install dependencies, then launch the engine launcher:
 
 ```bash
 python3 -m pip install -r requirements.txt
-python3 -m aberration_siege.editor
+python3 -m aberration_siege
 ```
 
+You can also run `python3 launch.py`.
+
 The editor saves to `data/levels/editor_level.json` by default.
+
+To skip the launcher and open the level editor directly:
+
+```bash
+python3 -m aberration_siege.editor
+```
 
 ## Editor Controls
 

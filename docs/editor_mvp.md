@@ -9,6 +9,7 @@ The first pass focuses on the shared foundation between editor and game:
 - designer-controlled map dimensions and maximum expansion size
 - live level statistics and validation feedback
 - 16x16 asset extraction from configured tilesets and spritesheets
+- engine launcher entry point for opening editor tools
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -18,6 +19,10 @@ The saved level schema already includes future-facing layers for defenses, build
 ## GUI Pass
 
 The editor now has a reusable pygame GUI foundation with buttons and section headers. The current screen includes file controls, map dimension controls, validation feedback, level statistics, view controls, tool selection, layer selection, selected tile preview, and a scrollable tile picker.
+
+## Launcher
+
+`python3 -m aberration_siege` opens the pygame engine launcher. The launcher currently opens the Level Editor and reserves disabled slots for future Data Editor and Game runtime tools.
 
 ## Validation
 
