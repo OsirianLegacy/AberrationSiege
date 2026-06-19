@@ -12,6 +12,7 @@ The first pass focuses on the shared foundation between editor and game:
 - engine launcher entry point for opening editor tools
 - per-layer visibility toggles for multi-layer authoring
 - undo/redo history for level edits
+- 1x1, 3x3, and 5x5 brush sizes for faster painting
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -25,6 +26,10 @@ Each layer row has an `On` / `Off` visibility toggle. Visibility only affects ed
 ## Undo And Redo
 
 Level edits push undo snapshots before they mutate saved data. Painting, erasing, resizing, changing maximum size, creating a blank level, and loading a level can be undone and redone with toolbar controls or keyboard shortcuts.
+
+## Brush Sizes
+
+The editor supports `1x1`, `3x3`, and `5x5` square brushes for paint and erase. Brush painting clips to level bounds and still records a single undo entry per stroke.
 
 ## GUI Pass
 

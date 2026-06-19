@@ -38,6 +38,7 @@ MAX_LEVEL_HEIGHT_LIMIT = 90
 MAX_HISTORY = 100
 
 TOOLS = ["paint", "erase", "sample"]
+BRUSH_SIZES = [1, 3, 5]
 
 
 @dataclass
@@ -63,6 +64,7 @@ class LevelEditor:
 
         self.active_layer_index = 0
         self.active_tool = "paint"
+        self.brush_size = 1
         self.selected_tile = 0
         self.tile_scroll = 0
         self.visible_layers = {layer: True for layer in LAYER_ORDER}
@@ -140,6 +142,10 @@ class LevelEditor:
             self._set_tool("erase")
         elif event.key == pygame.K_i:
             self._set_tool("sample")
+        elif event.key == pygame.K_LEFTBRACKET:
+            self._step_brush_size(-1)
+        elif event.key == pygame.K_RIGHTBRACKET:
+            self._step_brush_size(1)
         elif pygame.K_1 <= event.key <= pygame.K_8:
             self.active_layer_index = event.key - pygame.K_1
             self.status = f"Layer: {self.active_layer}"
@@ -211,6 +217,8 @@ class LevelEditor:
                 self._toggle_layer_visibility(layer_index)
             elif button.id.startswith("tool:"):
                 self._set_tool(button.id.split(":", 1)[1])
+            elif button.id.startswith("brush:"):
+                self._set_brush_size(int(button.id.split(":", 1)[1]))
             elif button.id == "file:save":
                 self._save()
             elif button.id == "file:load":
@@ -241,12 +249,23 @@ class LevelEditor:
         return False
 
     def _paint_cell(self, x: int, y: int, value: int | None) -> None:
-        if self.level.sample(self.active_layer, x, y) == value:
+        cells = self._brush_cells(x, y)
+        if not any(self.level.sample(self.active_layer, cell_x, cell_y) != value for cell_x, cell_y in cells):
             return
         if not self.paint_stroke_active:
             self._push_history()
             self.paint_stroke_active = True
-        self.level.paint(self.active_layer, x, y, value)
+        for cell_x, cell_y in cells:
+            self.level.paint(self.active_layer, cell_x, cell_y, value)
+
+    def _brush_cells(self, center_x: int, center_y: int) -> list[tuple[int, int]]:
+        radius = self.brush_size // 2
+        cells: list[tuple[int, int]] = []
+        for y in range(center_y - radius, center_y + radius + 1):
+            for x in range(center_x - radius, center_x + radius + 1):
+                if self.level.in_bounds(x, y):
+                    cells.append((x, y))
+        return cells
 
     def _toggle_layer_visibility(self, layer_index: int) -> None:
         layer = LAYER_ORDER[layer_index]
@@ -283,6 +302,17 @@ class LevelEditor:
             return
         self.active_tool = tool
         self.status = f"Tool: {tool}"
+
+    def _set_brush_size(self, size: int) -> None:
+        if size not in BRUSH_SIZES:
+            return
+        self.brush_size = size
+        self.status = f"Brush: {size}x{size}"
+
+    def _step_brush_size(self, direction: int) -> None:
+        index = BRUSH_SIZES.index(self.brush_size)
+        index = max(0, min(index + direction, len(BRUSH_SIZES) - 1))
+        self._set_brush_size(BRUSH_SIZES[index])
 
     def _validate_level(self) -> None:
         errors = self.level.validation_errors(tile_count=len(self.tiles))
@@ -562,7 +592,8 @@ class LevelEditor:
         self._draw_text("AberrationSiege Editor", SIDEBAR_PAD, 10, self.palette[17], self.font)
         self._draw_text(f"Layer: {self.active_layer}", SIDEBAR_PAD, 34, self.palette[9])
         self._draw_text(f"Tool: {self.active_tool}", SIDEBAR_PAD, 54, self.palette[9])
-        self._draw_text(f"Tile: {self.selected_tile}", SIDEBAR_PAD, 74, self.palette[9])
+        self._draw_text(f"Brush: {self.brush_size}x{self.brush_size}", SIDEBAR_PAD, 74, self.palette[9])
+        self._draw_text(f"Tile: {self.selected_tile}", SIDEBAR_PAD, 92, self.palette[9])
 
         preview_rect = pygame.Rect(SIDEBAR_WIDTH - SIDEBAR_PAD - 56, 18, 48, 48)
         pygame.draw.rect(self.screen, self.palette[1], preview_rect)
@@ -571,7 +602,7 @@ class LevelEditor:
             self.screen.blit(preview, preview_rect)
         pygame.draw.rect(self.screen, self.palette[17], preview_rect, 1)
 
-        y = 104
+        y = 120
         Section("Level", y).draw(
             self.screen, self.small_font, SIDEBAR_PAD, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, self.palette[17], self.palette[18]
         )
@@ -591,6 +622,19 @@ class LevelEditor:
                 label=tool_labels[tool],
                 rect=pygame.Rect(x, y, 84, BUTTON_HEIGHT),
                 selected=tool == self.active_tool,
+            )
+            self._draw_button(button)
+            self.buttons.append(button)
+            x += 92
+
+        y += BUTTON_HEIGHT + 8
+        x = SIDEBAR_PAD
+        for size in BRUSH_SIZES:
+            button = Button(
+                id=f"brush:{size}",
+                label=f"{size}x{size}",
+                rect=pygame.Rect(x, y, 84, BUTTON_HEIGHT),
+                selected=size == self.brush_size,
             )
             self._draw_button(button)
             self.buttons.append(button)
@@ -635,9 +679,9 @@ class LevelEditor:
         terrain_cells = counts["terrain"]
 
         self._draw_text(f"Cells: {total_cells} / max {self.level.max_width * self.level.max_height}", x, y, self.palette[9])
-        self._draw_text(f"Painted: {painted_cells}", x, y + 18, self.palette[9])
-        self._draw_text(f"Terrain: {terrain_cells}", x, y + 36, self.palette[9])
-        self._draw_text(f"Kingdom Zone: {kingdom_cells}", x, y + 54, self.palette[10])
+        self._draw_text(f"Painted: {painted_cells}", x, y + 16, self.palette[9])
+        self._draw_text(f"Terrain: {terrain_cells}", x, y + 32, self.palette[9])
+        self._draw_text(f"Kingdom Zone: {kingdom_cells}", x, y + 48, self.palette[10])
 
     def _draw_tile_picker(self, top: int) -> None:
         left = SIDEBAR_PAD
@@ -717,7 +761,7 @@ class LevelEditor:
         rect = pygame.Rect(0, self.screen.get_height() - STATUS_HEIGHT, self.screen.get_width(), STATUS_HEIGHT)
         pygame.draw.rect(self.screen, self.palette[0], rect)
         self._draw_text(self.status, SIDEBAR_PAD, rect.y + 8, self.palette[17], self.small_font)
-        controls = "B Paint | E Erase | I Pick | Ctrl/Cmd+Z Undo | Ctrl/Cmd+S Save"
+        controls = "B Paint | E Erase | I Pick | [ ] Brush | Ctrl/Cmd+Z Undo | Ctrl/Cmd+S Save"
         self._draw_text(controls, SIDEBAR_WIDTH + 12, rect.y + 7, self.palette[18], self.small_font)
 
     def _draw_button(self, button: Button, align_left: bool = False) -> None:
