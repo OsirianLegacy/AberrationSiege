@@ -99,6 +99,27 @@ class Level:
                 if invalid_tiles:
                     raise ValueError(f"Layer {layer_name} references unavailable tile ids.")
 
+    def resize(self, width: int, height: int) -> None:
+        if width <= 0 or height <= 0:
+            raise ValueError("Level dimensions must be positive.")
+        if width > self.max_width or height > self.max_height:
+            raise ValueError("Level dimensions cannot exceed the configured maximum size.")
+
+        for layer in LAYER_ORDER:
+            self.layers[layer] = _resize_grid(self.layers[layer], width, height)
+
+        self.width = width
+        self.height = height
+        self.validate()
+
+    def set_max_size(self, max_width: int, max_height: int) -> None:
+        if max_width < self.width or max_height < self.height:
+            raise ValueError("Maximum size cannot be smaller than the current level size.")
+
+        self.max_width = max_width
+        self.max_height = max_height
+        self.validate()
+
     def paint(self, layer: str, x: int, y: int, value: int | None) -> None:
         if not self.in_bounds(x, y):
             return
@@ -111,3 +132,15 @@ class Level:
 
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
+
+
+def _resize_grid(grid: Grid, width: int, height: int) -> Grid:
+    resized = empty_grid(width, height)
+    copy_height = min(len(grid), height)
+
+    for y in range(copy_height):
+        row = grid[y]
+        copy_width = min(len(row), width)
+        resized[y][:copy_width] = row[:copy_width]
+
+    return resized

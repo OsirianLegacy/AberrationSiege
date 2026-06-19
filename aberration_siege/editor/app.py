@@ -23,10 +23,14 @@ from aberration_siege.editor.ui import Button, Section
 SIDEBAR_WIDTH = 304
 STATUS_HEIGHT = 30
 TILE_PICKER_GAP = 4
-TOOLBAR_HEIGHT = 44
+TOOLBAR_HEIGHT = 76
 SIDEBAR_PAD = 12
 BUTTON_HEIGHT = 26
 SECTION_GAP = 14
+MIN_LEVEL_WIDTH = 8
+MIN_LEVEL_HEIGHT = 8
+MAX_LEVEL_WIDTH_LIMIT = 160
+MAX_LEVEL_HEIGHT_LIMIT = 90
 
 TOOLS = ["paint", "erase", "sample"]
 
@@ -190,6 +194,8 @@ class LevelEditor:
                 self._save()
             elif button.id == "file:load":
                 self._load()
+            elif button.id == "file:new":
+                self._new_level()
             elif button.id == "view:grid":
                 self.show_grid = not self.show_grid
                 self.status = f"Grid: {'on' if self.show_grid else 'off'}"
@@ -199,9 +205,27 @@ class LevelEditor:
             elif button.id == "zoom:in":
                 self.camera.zoom = min(5, self.camera.zoom + 1)
                 self.status = f"Zoom: {self.camera.zoom}x"
+            elif button.id.startswith("level:"):
+                self._handle_level_button(button.id)
             return True
 
         return False
+
+    def _handle_level_button(self, button_id: str) -> None:
+        _prefix, target, direction = button_id.split(":", 2)
+        delta = -1 if direction == "down" else 1
+
+        try:
+            if target == "width":
+                self._resize_level(width=self.level.width + delta, height=self.level.height)
+            elif target == "height":
+                self._resize_level(width=self.level.width, height=self.level.height + delta)
+            elif target == "max_width":
+                self._set_level_max(max_width=self.level.max_width + delta, max_height=self.level.max_height)
+            elif target == "max_height":
+                self._set_level_max(max_width=self.level.max_width, max_height=self.level.max_height + delta)
+        except ValueError as exc:
+            self.status = str(exc)
 
     def _pick_tile(self, mouse_pos: tuple[int, int]) -> bool:
         for tile_index, rect in self.tile_rects:
@@ -216,6 +240,34 @@ class LevelEditor:
             return
         self.active_tool = tool
         self.status = f"Tool: {tool}"
+
+    def _new_level(self) -> None:
+        self.level = Level(
+            name=self.level.name,
+            width=self.level.width,
+            height=self.level.height,
+            max_width=self.level.max_width,
+            max_height=self.level.max_height,
+        )
+        self._clamp_camera()
+        self.status = f"New blank level: {self.level.width}x{self.level.height}"
+
+    def _resize_level(self, width: int, height: int) -> None:
+        width = max(MIN_LEVEL_WIDTH, min(width, self.level.max_width))
+        height = max(MIN_LEVEL_HEIGHT, min(height, self.level.max_height))
+        self.level.resize(width, height)
+        self._clamp_camera()
+        self.status = f"Level size: {self.level.width}x{self.level.height}"
+
+    def _set_level_max(self, max_width: int, max_height: int) -> None:
+        max_width = max(self.level.width, min(max_width, MAX_LEVEL_WIDTH_LIMIT))
+        max_height = max(self.level.height, min(max_height, MAX_LEVEL_HEIGHT_LIMIT))
+        self.level.set_max_size(max_width, max_height)
+        self.status = f"Max size: {self.level.max_width}x{self.level.max_height}"
+
+    def _clamp_camera(self) -> None:
+        self.camera.x = max(0, min(self.camera.x, self.level.width - 1))
+        self.camera.y = max(0, min(self.camera.y, self.level.height - 1))
 
     def _sample_cell(self, x: int, y: int) -> None:
         value = self.level.sample(self.active_layer, x, y)
@@ -279,6 +331,7 @@ class LevelEditor:
         for button_id, label in (
             ("file:save", "Save"),
             ("file:load", "Load"),
+            ("file:new", "New"),
             ("view:grid", "Grid"),
             ("zoom:out", "-"),
             ("zoom:in", "+"),
@@ -294,6 +347,8 @@ class LevelEditor:
             self.buttons.append(button)
             x += width + 8
 
+        self._draw_dimension_controls(rect.x + 12, 43)
+
         self._draw_text(
             f"{self.level.name} | {self.level.width}x{self.level.height} | Zoom {self.camera.zoom}x",
             x + 8,
@@ -301,6 +356,83 @@ class LevelEditor:
             self.palette[9],
             self.small_font,
         )
+
+    def _draw_dimension_controls(self, x: int, y: int) -> None:
+        x = self._draw_stepper(
+            "W",
+            self.level.width,
+            "level:width:down",
+            "level:width:up",
+            x,
+            y,
+            can_decrease=self.level.width > MIN_LEVEL_WIDTH,
+            can_increase=self.level.width < self.level.max_width,
+        )
+        x = self._draw_stepper(
+            "H",
+            self.level.height,
+            "level:height:down",
+            "level:height:up",
+            x + 10,
+            y,
+            can_decrease=self.level.height > MIN_LEVEL_HEIGHT,
+            can_increase=self.level.height < self.level.max_height,
+        )
+        x = self._draw_stepper(
+            "Max W",
+            self.level.max_width,
+            "level:max_width:down",
+            "level:max_width:up",
+            x + 18,
+            y,
+            can_decrease=self.level.max_width > self.level.width,
+            can_increase=self.level.max_width < MAX_LEVEL_WIDTH_LIMIT,
+        )
+        self._draw_stepper(
+            "Max H",
+            self.level.max_height,
+            "level:max_height:down",
+            "level:max_height:up",
+            x + 10,
+            y,
+            can_decrease=self.level.max_height > self.level.height,
+            can_increase=self.level.max_height < MAX_LEVEL_HEIGHT_LIMIT,
+        )
+
+    def _draw_stepper(
+        self,
+        label: str,
+        value: int,
+        decrease_id: str,
+        increase_id: str,
+        x: int,
+        y: int,
+        can_decrease: bool,
+        can_increase: bool,
+    ) -> int:
+        label_surface = self.small_font.render(label, True, self.palette[17])
+        self.screen.blit(label_surface, (x, y + 7))
+        x += label_surface.get_width() + 6
+
+        for button_id, text, enabled in (
+            (decrease_id, "-", can_decrease),
+            (increase_id, "+", can_increase),
+        ):
+            if text == "+":
+                self._draw_text(str(value), x, y + 7, self.palette[9], self.small_font)
+                x += 38
+
+            button = Button(
+                id=button_id,
+                label=text,
+                rect=pygame.Rect(x, y, 24, BUTTON_HEIGHT),
+                enabled=enabled,
+            )
+            self._draw_button(button)
+            self.buttons.append(button)
+            x += 28
+
+        return x
 
     def _draw_sidebar(self) -> None:
         sidebar = pygame.Rect(0, 0, SIDEBAR_WIDTH, self.screen.get_height())

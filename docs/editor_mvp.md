@@ -6,6 +6,7 @@ The first pass focuses on the shared foundation between editor and game:
 - 16x16 sprites and tiles
 - layered rendering order
 - clickable pygame GUI controls
+- designer-controlled map dimensions and maximum expansion size
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -14,7 +15,11 @@ The saved level schema already includes future-facing layers for defenses, build
 
 ## GUI Pass
 
-The editor now has a reusable pygame GUI foundation with buttons and section headers. The current screen includes file controls, view controls, tool selection, layer selection, selected tile preview, and a scrollable tile picker.
+The editor now has a reusable pygame GUI foundation with buttons and section headers. The current screen includes file controls, map dimension controls, view controls, tool selection, layer selection, selected tile preview, and a scrollable tile picker.
+
+## Level Sizing
+
+The Designer can resize the current editable level with `W` and `H` controls. Existing painted cells are preserved while expanding, and cells outside the new bounds are clipped when shrinking. `Max W` and `Max H` set the fixed maximum size that future expansion rules can use during a run.
 
 ## Layers
 
