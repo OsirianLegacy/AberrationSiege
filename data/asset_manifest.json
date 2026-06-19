@@ -1,0 +1,26 @@
+{
+  "palette": "assets/palettes/Dawnbringer32_Palette_By_Dawnbringer.png",
+  "tilesets": [
+    {
+      "id": "bitcrawl_tileset",
+      "path": "assets/tilesets/Tileset.png",
+      "tile_width": 16,
+      "tile_height": 16
+    }
+  ],
+  "sprite_sources": [
+    {
+      "id": "characters_thick_outline",
+      "path": "assets/characters/thick_outline",
+      "tile_width": 16,
+      "tile_height": 16,
+      "frame_count": 4
+    },
+    {
+      "id": "items_single_icons_thick_outline",
+      "path": "assets/items/single_icons_thick_outline",
+      "tile_width": 16,
+      "tile_height": 16
+    }
+  ]
+}

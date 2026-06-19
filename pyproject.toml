@@ -1,0 +1,10 @@
+[project]
+name = "aberration-siege"
+version = "0.1.0"
+description = "A pygame deckbuilder base-defense game and editor."
+requires-python = ">=3.11"
+dependencies = ["pygame>=2.6.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
