@@ -37,6 +37,7 @@ python3 -m aberration_siege.editor
 ## Editor Controls
 
 - `Save` / `Load` buttons or `Ctrl+S` / `Ctrl+O`
+- `Undo` / `Redo` buttons or `Ctrl/Cmd+Z` and `Ctrl/Cmd+Y`
 - `Validate` checks the level JSON data without saving
 - `Extract` slices configured assets into generated 16x16 PNGs
 - `New` creates a blank level using the current dimensions

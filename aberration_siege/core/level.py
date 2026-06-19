@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,16 @@ class Level:
     @classmethod
     def new(cls, width: int = 48, height: int = 32) -> "Level":
         return cls(width=width, height=height)
+
+    def clone(self) -> "Level":
+        return Level(
+            name=self.name,
+            width=self.width,
+            height=self.height,
+            max_width=self.max_width,
+            max_height=self.max_height,
+            layers=deepcopy(self.layers),
+        )
 
     @classmethod
     def load(cls, path: Path) -> "Level":

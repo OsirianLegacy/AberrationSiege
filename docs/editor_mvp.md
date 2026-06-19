@@ -11,6 +11,7 @@ The first pass focuses on the shared foundation between editor and game:
 - 16x16 asset extraction from configured tilesets and spritesheets
 - engine launcher entry point for opening editor tools
 - per-layer visibility toggles for multi-layer authoring
+- undo/redo history for level edits
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -20,6 +21,10 @@ The saved level schema already includes future-facing layers for defenses, build
 ## Layer Visibility
 
 Each layer row has an `On` / `Off` visibility toggle. Visibility only affects editor rendering and does not remove or skip layer data when saving JSON.
+
+## Undo And Redo
+
+Level edits push undo snapshots before they mutate saved data. Painting, erasing, resizing, changing maximum size, creating a blank level, and loading a level can be undone and redone with toolbar controls or keyboard shortcuts.
 
 ## GUI Pass
 

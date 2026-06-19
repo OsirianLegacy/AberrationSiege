@@ -35,6 +35,7 @@ MIN_LEVEL_WIDTH = 8
 MIN_LEVEL_HEIGHT = 8
 MAX_LEVEL_WIDTH_LIMIT = 160
 MAX_LEVEL_HEIGHT_LIMIT = 90
+MAX_HISTORY = 100
 
 TOOLS = ["paint", "erase", "sample"]
 
@@ -69,6 +70,9 @@ class LevelEditor:
         self.status = "Ready"
         self.show_grid = True
         self.running = True
+        self.undo_stack: list[Level] = []
+        self.redo_stack: list[Level] = []
+        self.paint_stroke_active = False
         self.buttons: list[Button] = []
         self.tile_rects: list[tuple[int, pygame.Rect]] = []
         self.tile_picker_rect = pygame.Rect(0, 0, 0, 0)
@@ -108,16 +112,25 @@ class LevelEditor:
                 self._handle_mouse_wheel(event)
             elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEMOTION):
                 self._handle_mouse_event(event)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                self.paint_stroke_active = False
 
     def _handle_key(self, event: pygame.event.Event) -> None:
         mods = pygame.key.get_mods()
+        command = bool(mods & pygame.KMOD_CTRL or mods & pygame.KMOD_META)
 
         if event.key == pygame.K_ESCAPE:
             self.running = False
-        elif event.key == pygame.K_s and mods & pygame.KMOD_CTRL:
+        elif event.key == pygame.K_s and command:
             self._save()
-        elif event.key == pygame.K_o and mods & pygame.KMOD_CTRL:
+        elif event.key == pygame.K_o and command:
             self._load()
+        elif event.key == pygame.K_z and command and mods & pygame.KMOD_SHIFT:
+            self._redo()
+        elif event.key == pygame.K_z and command:
+            self._undo()
+        elif event.key == pygame.K_y and command:
+            self._redo()
         elif event.key == pygame.K_g:
             self.show_grid = not self.show_grid
             self.status = f"Grid: {'on' if self.show_grid else 'off'}"
@@ -176,14 +189,14 @@ class LevelEditor:
         if buttons[0] and self.active_tool == "sample":
             self._sample_cell(x, y)
         elif buttons[0] and self.active_tool == "erase":
-            self.level.paint(self.active_layer, x, y, None)
+            self._paint_cell(x, y, None)
         elif buttons[0]:
             if self.active_layer == "kingdom_zone":
-                self.level.paint(self.active_layer, x, y, 1)
+                self._paint_cell(x, y, 1)
             else:
-                self.level.paint(self.active_layer, x, y, self.selected_tile)
+                self._paint_cell(x, y, self.selected_tile)
         elif buttons[2]:
-            self.level.paint(self.active_layer, x, y, None)
+            self._paint_cell(x, y, None)
 
     def _handle_button_click(self, mouse_pos: tuple[int, int]) -> bool:
         for button in self.buttons:
@@ -208,6 +221,10 @@ class LevelEditor:
                 self._validate_level()
             elif button.id == "file:extract":
                 self._extract_assets()
+            elif button.id == "history:undo":
+                self._undo()
+            elif button.id == "history:redo":
+                self._redo()
             elif button.id == "view:grid":
                 self.show_grid = not self.show_grid
                 self.status = f"Grid: {'on' if self.show_grid else 'off'}"
@@ -222,6 +239,14 @@ class LevelEditor:
             return True
 
         return False
+
+    def _paint_cell(self, x: int, y: int, value: int | None) -> None:
+        if self.level.sample(self.active_layer, x, y) == value:
+            return
+        if not self.paint_stroke_active:
+            self._push_history()
+            self.paint_stroke_active = True
+        self.level.paint(self.active_layer, x, y, value)
 
     def _toggle_layer_visibility(self, layer_index: int) -> None:
         layer = LAYER_ORDER[layer_index]
@@ -278,6 +303,7 @@ class LevelEditor:
             self.status = f"Extract failed: {exc}"
 
     def _new_level(self) -> None:
+        self._push_history()
         self.level = Level(
             name=self.level.name,
             width=self.level.width,
@@ -291,6 +317,9 @@ class LevelEditor:
     def _resize_level(self, width: int, height: int) -> None:
         width = max(MIN_LEVEL_WIDTH, min(width, self.level.max_width))
         height = max(MIN_LEVEL_HEIGHT, min(height, self.level.max_height))
+        if width == self.level.width and height == self.level.height:
+            return
+        self._push_history()
         self.level.resize(width, height)
         self._clamp_camera()
         self.status = f"Level size: {self.level.width}x{self.level.height}"
@@ -298,6 +327,9 @@ class LevelEditor:
     def _set_level_max(self, max_width: int, max_height: int) -> None:
         max_width = max(self.level.width, min(max_width, MAX_LEVEL_WIDTH_LIMIT))
         max_height = max(self.level.height, min(max_height, MAX_LEVEL_HEIGHT_LIMIT))
+        if max_width == self.level.max_width and max_height == self.level.max_height:
+            return
+        self._push_history()
         self.level.set_max_size(max_width, max_height)
         self.status = f"Max size: {self.level.max_width}x{self.level.max_height}"
 
@@ -336,10 +368,39 @@ class LevelEditor:
 
     def _load(self) -> None:
         try:
-            self.level = Level.load(self.level_path)
+            loaded = Level.load(self.level_path)
+            self._push_history()
+            self.level = loaded
+            self._clamp_camera()
             self.status = f"Loaded {self.level_path.name}"
         except Exception as exc:
             self.status = f"Load failed: {exc}"
+
+    def _push_history(self) -> None:
+        self.undo_stack.append(self.level.clone())
+        if len(self.undo_stack) > MAX_HISTORY:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+
+    def _undo(self) -> None:
+        if not self.undo_stack:
+            self.status = "Nothing to undo"
+            return
+        self.redo_stack.append(self.level.clone())
+        self.level = self.undo_stack.pop()
+        self.paint_stroke_active = False
+        self._clamp_camera()
+        self.status = "Undo"
+
+    def _redo(self) -> None:
+        if not self.redo_stack:
+            self.status = "Nothing to redo"
+            return
+        self.undo_stack.append(self.level.clone())
+        self.level = self.redo_stack.pop()
+        self.paint_stroke_active = False
+        self._clamp_camera()
+        self.status = "Redo"
 
     def _draw(self) -> None:
         self.screen.fill(self.palette[1])
@@ -370,16 +431,24 @@ class LevelEditor:
             ("file:new", "New"),
             ("file:validate", "Validate"),
             ("file:extract", "Extract"),
+            ("history:undo", "Undo"),
+            ("history:redo", "Redo"),
             ("view:grid", "Grid"),
             ("zoom:out", "-"),
             ("zoom:in", "+"),
         ):
             width = 82 if label in ("Extract", "Validate") else 64 if len(label) > 1 else 32
+            enabled = True
+            if button_id == "history:undo":
+                enabled = bool(self.undo_stack)
+            elif button_id == "history:redo":
+                enabled = bool(self.redo_stack)
             button = Button(
                 id=button_id,
                 label=label,
                 rect=pygame.Rect(x, y, width, BUTTON_HEIGHT),
                 selected=button_id == "view:grid" and self.show_grid,
+                enabled=enabled,
             )
             self._draw_button(button)
             self.buttons.append(button)
@@ -648,7 +717,7 @@ class LevelEditor:
         rect = pygame.Rect(0, self.screen.get_height() - STATUS_HEIGHT, self.screen.get_width(), STATUS_HEIGHT)
         pygame.draw.rect(self.screen, self.palette[0], rect)
         self._draw_text(self.status, SIDEBAR_PAD, rect.y + 8, self.palette[17], self.small_font)
-        controls = "B Paint | E Erase | I Pick | 1-8 Layers | Ctrl+S Save | Right-click Erase"
+        controls = "B Paint | E Erase | I Pick | Ctrl/Cmd+Z Undo | Ctrl/Cmd+S Save"
         self._draw_text(controls, SIDEBAR_WIDTH + 12, rect.y + 7, self.palette[18], self.small_font)
 
     def _draw_button(self, button: Button, align_left: bool = False) -> None:
