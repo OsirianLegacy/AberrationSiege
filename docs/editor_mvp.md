@@ -8,6 +8,7 @@ The first pass focuses on the shared foundation between editor and game:
 - clickable pygame GUI controls
 - designer-controlled map dimensions and maximum expansion size
 - live level statistics and validation feedback
+- 16x16 asset extraction from configured tilesets and spritesheets
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
@@ -21,6 +22,10 @@ The editor now has a reusable pygame GUI foundation with buttons and section hea
 ## Validation
 
 The toolbar has a `Validate` action that runs the same JSON data validation used by save. The sidebar shows live cell totals, painted cell counts, terrain coverage, and Kingdom Zone coverage so level authors can quickly spot empty or incomplete maps.
+
+## Asset Extraction
+
+The editor and `scripts/extract_16px_assets.py` can extract 16x16 PNGs from every source listed in `data/asset_manifest.json`. Generated assets are placed in `assets/extracted/` with a matching `data/extracted_assets.json` manifest for later data-editor tabs.
 
 ## Level Sizing
 

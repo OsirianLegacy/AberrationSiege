@@ -7,6 +7,8 @@ from pathlib import Path
 import pygame
 
 from aberration_siege.core.constants import (
+    ASSETS_DIR,
+    DATA_DIR,
     DEFAULT_LEVEL_PATH,
     DEFAULT_PALETTE_PATH,
     DEFAULT_TILESET_PATH,
@@ -14,6 +16,7 @@ from aberration_siege.core.constants import (
     MIN_WINDOW_SIZE,
     TILE_SIZE,
 )
+from aberration_siege.core.extraction import extract_from_asset_manifest
 from aberration_siege.core.level import Level
 from aberration_siege.core.palette import load_palette_from_image
 from aberration_siege.core.sprites import load_sliced_tiles
@@ -199,6 +202,8 @@ class LevelEditor:
                 self._new_level()
             elif button.id == "file:validate":
                 self._validate_level()
+            elif button.id == "file:extract":
+                self._extract_assets()
             elif button.id == "view:grid":
                 self.show_grid = not self.show_grid
                 self.status = f"Grid: {'on' if self.show_grid else 'off'}"
@@ -250,6 +255,17 @@ class LevelEditor:
             self.status = f"Invalid: {errors[0]}"
         else:
             self.status = "Level validation passed"
+
+    def _extract_assets(self) -> None:
+        try:
+            extracted = extract_from_asset_manifest(
+                manifest_path=DATA_DIR / "asset_manifest.json",
+                output_dir=ASSETS_DIR / "extracted",
+                output_manifest_path=DATA_DIR / "extracted_assets.json",
+            )
+            self.status = f"Extracted {len(extracted)} sprites"
+        except Exception as exc:
+            self.status = f"Extract failed: {exc}"
 
     def _new_level(self) -> None:
         self.level = Level(
@@ -343,11 +359,12 @@ class LevelEditor:
             ("file:load", "Load"),
             ("file:new", "New"),
             ("file:validate", "Validate"),
+            ("file:extract", "Extract"),
             ("view:grid", "Grid"),
             ("zoom:out", "-"),
             ("zoom:in", "+"),
         ):
-            width = 82 if label == "Validate" else 64 if len(label) > 1 else 32
+            width = 82 if label in ("Extract", "Validate") else 64 if len(label) > 1 else 32
             button = Button(
                 id=button_id,
                 label=label,
@@ -358,7 +375,7 @@ class LevelEditor:
             self.buttons.append(button)
             x += width + 8
 
-        self._draw_dimension_controls(rect.x + 12, 43)
+        dimension_right = self._draw_dimension_controls(rect.x + 12, 43)
 
         self._draw_text(
             f"{self.level.name} | {self.level.width}x{self.level.height} | Zoom {self.camera.zoom}x",
@@ -368,7 +385,7 @@ class LevelEditor:
             self.small_font,
         )
 
-        self._draw_validation_summary(x + 8, 42)
+        self._draw_validation_summary(dimension_right + 16, 50)
 
     def _draw_validation_summary(self, x: int, y: int) -> None:
         errors = self.level.validation_errors(tile_count=len(self.tiles))
@@ -380,7 +397,7 @@ class LevelEditor:
             color = self.palette[10]
         self._draw_text(text, x, y, color, self.small_font)
 
-    def _draw_dimension_controls(self, x: int, y: int) -> None:
+    def _draw_dimension_controls(self, x: int, y: int) -> int:
         x = self._draw_stepper(
             "W",
             self.level.width,
@@ -411,7 +428,7 @@ class LevelEditor:
             can_decrease=self.level.max_width > self.level.width,
             can_increase=self.level.max_width < MAX_LEVEL_WIDTH_LIMIT,
         )
-        self._draw_stepper(
+        x = self._draw_stepper(
             "Max H",
             self.level.max_height,
             "level:max_height:down",
@@ -421,6 +438,7 @@ class LevelEditor:
             can_decrease=self.level.max_height > self.level.height,
             can_increase=self.level.max_height < MAX_LEVEL_HEIGHT_LIMIT,
         )
+        return x
 
     def _draw_stepper(
         self,
