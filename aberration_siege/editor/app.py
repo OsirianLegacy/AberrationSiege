@@ -64,6 +64,7 @@ class LevelEditor:
         self.active_tool = "paint"
         self.selected_tile = 0
         self.tile_scroll = 0
+        self.visible_layers = {layer: True for layer in LAYER_ORDER}
         self.camera = Camera()
         self.status = "Ready"
         self.show_grid = True
@@ -192,6 +193,9 @@ class LevelEditor:
             if button.id.startswith("layer:"):
                 self.active_layer_index = int(button.id.split(":", 1)[1])
                 self.status = f"Layer: {self.active_layer}"
+            elif button.id.startswith("visible:"):
+                layer_index = int(button.id.split(":", 1)[1])
+                self._toggle_layer_visibility(layer_index)
             elif button.id.startswith("tool:"):
                 self._set_tool(button.id.split(":", 1)[1])
             elif button.id == "file:save":
@@ -218,6 +222,12 @@ class LevelEditor:
             return True
 
         return False
+
+    def _toggle_layer_visibility(self, layer_index: int) -> None:
+        layer = LAYER_ORDER[layer_index]
+        self.visible_layers[layer] = not self.visible_layers[layer]
+        state = "visible" if self.visible_layers[layer] else "hidden"
+        self.status = f"{layer}: {state}"
 
     def _handle_level_button(self, button_id: str) -> None:
         _prefix, target, direction = button_id.split(":", 2)
@@ -523,10 +533,19 @@ class LevelEditor:
         )
         y += 28
         for index, layer in enumerate(LAYER_ORDER):
+            visibility_button = Button(
+                id=f"visible:{index}",
+                label="On" if self.visible_layers[layer] else "Off",
+                rect=pygame.Rect(SIDEBAR_PAD, y, 42, LAYER_BUTTON_HEIGHT),
+                selected=self.visible_layers[layer],
+            )
+            self._draw_button(visibility_button)
+            self.buttons.append(visibility_button)
+
             button = Button(
                 id=f"layer:{index}",
                 label=f"{index + 1}  {layer}",
-                rect=pygame.Rect(SIDEBAR_PAD, y, SIDEBAR_WIDTH - SIDEBAR_PAD * 2, LAYER_BUTTON_HEIGHT),
+                rect=pygame.Rect(SIDEBAR_PAD + 48, y, SIDEBAR_WIDTH - SIDEBAR_PAD * 2 - 48, LAYER_BUTTON_HEIGHT),
                 selected=index == self.active_layer_index,
             )
             self._draw_button(button, align_left=True)
@@ -602,6 +621,8 @@ class LevelEditor:
         pygame.draw.rect(self.screen, self.palette[13], dest)
 
         for layer in LAYER_ORDER:
+            if not self.visible_layers[layer]:
+                continue
             value = self.level.sample(layer, x, y)
             if value is None:
                 continue

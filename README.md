@@ -43,6 +43,7 @@ python3 -m aberration_siege.editor
 - `W`, `H`, `Max W`, and `Max H` steppers resize the current level
 - `Paint`, `Erase`, and `Pick` tool buttons or `B`, `E`, and `I`
 - clickable layer buttons or number keys `1-8`
+- layer `On` / `Off` buttons toggle editor visibility without changing saved data
 - `Grid`, `-`, and `+` buttons for view controls
 - left-click paints with the active tool; right-click erases
 

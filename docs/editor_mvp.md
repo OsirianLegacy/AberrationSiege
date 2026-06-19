@@ -10,11 +10,16 @@ The first pass focuses on the shared foundation between editor and game:
 - live level statistics and validation feedback
 - 16x16 asset extraction from configured tilesets and spritesheets
 - engine launcher entry point for opening editor tools
+- per-layer visibility toggles for multi-layer authoring
 - painted Kingdom Zone
 - JSON level files
 - validation before saving
 
 The saved level schema already includes future-facing layers for defenses, buildings, units, enemies, walls, and decorations. Early tools only paint terrain and Kingdom Zone data.
+
+## Layer Visibility
+
+Each layer row has an `On` / `Off` visibility toggle. Visibility only affects editor rendering and does not remove or skip layer data when saving JSON.
 
 ## GUI Pass
 
